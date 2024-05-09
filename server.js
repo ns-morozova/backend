@@ -12,19 +12,23 @@ const pub = path.join(__dirname, '/public');
 
 app.use(koaStatic(pub));
 
-app.use(koaBody({
-    urlencoded: true,
-    multipart: true,
-}));
+app.use(
+    koaBody({
+        text: true,
+        urlencoded: true,
+        multipart: true,
+        json: true,
+    })
+);
 
 app.use((ctx, next) => {
     if (ctx.request.method !== 'OPTIONS') {
         next();
         return;
     }
-
     ctx.response.set('Access-Control-Allow-Origin', '*');
     ctx.response.set('Access-Control-Allow-Methods', 'DELETE, PUT, PATCH, GET, POST');
+    ctx.response.set('Access-Control-Allow-Headers', 'Content-Type');
     ctx.response.status = 204;
 });
 
@@ -48,11 +52,10 @@ app.use((ctx, next) => {
 
     const objData = (typeof (ctx.request.body) == 'string') ? JSON.parse(ctx.request.body) : ctx.request.body;
 
-
     const nameFile = path.join(pub, objData.id);
     fs.writeFileSync(nameFile, JSON.stringify(objData));
 
-    ctx.response.set('Access-Control-Allow-Origin', '*');
+    ctx.response.set('Access-Control-Allow-Origin', '*');    
     ctx.response.body = 'OK';
 
     next();
@@ -83,11 +86,9 @@ app.use((ctx, next) => {
         let data = fs.readFileSync(path.join(pub, file));
         respData.push(JSON.parse(data));
     }
-
-    ctx.response.set('Access-Control-Allow-Origin', '*');
-    ctx.response.set('Content-Type', 'application/json');
+   
     ctx.response.body = JSON.stringify(respData);
-    //ctx.response.body = 'OK';
+    ctx.response.set('Access-Control-Allow-Origin', '*');
     next();
 
 });
@@ -110,24 +111,23 @@ app.use((ctx, next) => {
         return;
     }
 
+    const objData = (typeof (ctx.request.body) == 'string') ? JSON.parse(ctx.request.body) : ctx.request.body;
     const nameFile = path.join(pub, ctx.request.query.id);
 
-    try {
-        fs.accessSync(nameFile, fs.constants.R_OK);
-    } catch (err) {
-        ctx.response.status = 400;
-        ctx.response.body = 'Файл недоступен';
-        return;
-    } 
-
-    if (!('id' in ctx.request.body)) {
+    if (!('id' in objData)) {
         ctx.response.status = 400;
         ctx.response.body = 'Неверные данные';
         return;
     }
 
-    fs.writeFileSync(nameFile, JSON.stringify(ctx.request.body));
-
+    try {
+        fs.accessSync(nameFile, fs.constants.R_OK);
+        fs.writeFileSync(nameFile, JSON.stringify(objData));
+    } catch (err) {
+        ctx.response.status = 400;
+        ctx.response.body = 'Ошибка работы с файлами';
+        return;
+    }    
     ctx.response.set('Access-Control-Allow-Origin', '*');
     ctx.response.body = 'OK';
 
@@ -155,18 +155,14 @@ app.use((ctx, next) => {
 
     try {
         fs.accessSync(nameFile, fs.constants.R_OK);
+        let data = fs.readFileSync(nameFile);
+        ctx.response.body = data;
     } catch (err) {
         ctx.response.status = 400;
         ctx.response.body = 'Файл недоступен';
         return;
     }
-
-    let data = fs.readFileSync(nameFile);
-
     ctx.response.set('Access-Control-Allow-Origin', '*');
-    ctx.response.set('Content-Type', 'application/json');
-    ctx.response.body = data;
-
     next();
 });
 
@@ -205,7 +201,6 @@ app.use((ctx, next) => {
         ctx.response.body = 'Файл недоступен';
         return;
     }
-
     ctx.response.set('Access-Control-Allow-Origin', '*');
     ctx.response.body = 'OK';
 
